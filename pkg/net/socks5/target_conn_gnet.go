@@ -11,9 +11,6 @@ import (
 	"github.com/shanexu/gnet-socks5/internel/logging"
 )
 
-// 我也不知道个这个东西取一个什么名字，这个东西实现 gnet.EventHandler 其作用是客户端通过socks5代理
-// 连接服务端时。其实就是socks5 server自己作为客户端，连接服务端，所以自己就如同一个客户端一般，所以
-// 取了这个名字。
 type targetConn struct {
 	gnet.BuiltinEventEngine
 }
