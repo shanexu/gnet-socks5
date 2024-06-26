@@ -36,7 +36,7 @@ func main() {
 		username = ""
 		password = ""
 	}
-	server := socks5.NewGNetServer(addr, username, password, nil)
+	server := socks5.NewGNetServer(addr, username, password)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {

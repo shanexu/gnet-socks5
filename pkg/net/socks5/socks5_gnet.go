@@ -26,16 +26,13 @@ var (
 	ErrUnsupportedCommand       = errors.New("unsupported command")
 )
 
-type BeforeWrite func(cc gnet.Conn, sc gnet.Conn, fromClient bool, data []byte) ([]byte, error)
-
 type GNetServer struct {
 	gnet.BuiltinEventEngine
-	eng         gnet.Engine
-	addr        string
-	username    string
-	password    string
-	cli         *gnet.Client
-	beforeWrite BeforeWrite
+	eng      gnet.Engine
+	addr     string
+	username string
+	password string
+	cli      *gnet.Client
 }
 
 type codecState interface {
@@ -368,13 +365,6 @@ func (s *connectedState) onTraffic(conn gnet.Conn) (codecState, error) {
 	if err != nil {
 		return nil, err
 	}
-	co, _ := conn.Context().(*codec)
-	if co.beforeWrite != nil {
-		buf, err = co.beforeWrite(conn, s.Srv, true, buf)
-		if err != nil {
-			return nil, err
-		}
-	}
 	_, err = s.Srv.Write(buf)
 	if err != nil {
 		return nil, err
@@ -385,24 +375,22 @@ func (s *connectedState) onTraffic(conn gnet.Conn) (codecState, error) {
 var _ codecState = (*connectedState)(nil)
 
 type codec struct {
-	state       codecState
-	authed      bool
-	authMethod  byte
-	username    string
-	password    string
-	cli         *gnet.Client
-	beforeWrite BeforeWrite
+	state      codecState
+	authed     bool
+	authMethod byte
+	username   string
+	password   string
+	cli        *gnet.Client
 }
 
-func NewGNetServer(addr string, username, password string, beforeWrite BeforeWrite) *GNetServer {
-	cli := lo.Must1(gnet.NewClient(&gNetClient{}, gnet.WithMulticore(true)))
+func NewGNetServer(addr string, username, password string) *GNetServer {
+	cli := lo.Must1(gnet.NewClient(&targetConn{}, gnet.WithMulticore(true)))
 	lo.Must0(cli.Start())
 	return &GNetServer{
-		addr:        addr,
-		username:    username,
-		password:    password,
-		cli:         cli,
-		beforeWrite: beforeWrite,
+		addr:     addr,
+		username: username,
+		password: password,
+		cli:      cli,
 	}
 }
 
@@ -462,13 +450,12 @@ func (s *GNetServer) newCodec() *codec {
 		authMethod = passwordAuth
 	}
 	return &codec{
-		state:       _initState,
-		authed:      false,
-		authMethod:  authMethod,
-		username:    s.username,
-		password:    s.password,
-		cli:         s.cli,
-		beforeWrite: s.beforeWrite,
+		state:      _initState,
+		authed:     false,
+		authMethod: authMethod,
+		username:   s.username,
+		password:   s.password,
+		cli:        s.cli,
 	}
 }
 
@@ -477,5 +464,5 @@ func (co *codec) dial(clientConn gnet.Conn, network, addr string) (gnet.Conn, er
 	if err != nil {
 		return nil, err
 	}
-	return co.cli.EnrollContext(conn, &clientCtx{conn: clientConn, beforeWrite: co.beforeWrite})
+	return co.cli.EnrollContext(conn, &targetConnCtx{conn: clientConn})
 }
